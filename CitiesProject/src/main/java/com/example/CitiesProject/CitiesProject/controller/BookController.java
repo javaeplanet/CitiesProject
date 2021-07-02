@@ -4,8 +4,11 @@ import com.example.CitiesProject.CitiesProject.model.Book;
 import com.example.CitiesProject.CitiesProject.repos.BookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 public class BookController {
@@ -14,22 +17,36 @@ public class BookController {
     private BookRepository repository;
 
     @PostMapping("/addBook")
-    public String saveBook(@RequestBody Book book){
-        repository.save(book);
-        return "Added book with id:"+book.getId();
+    public Mono<Book> saveBook(@RequestBody Book book){
+      return   repository.save(book);
     }
 
-    @GetMapping("/findAllBooks")
-    public List<Book> getBooks(){
+//    @GetMapping("/findAllBooks")
+//    public List<Book> getBooks(){
+//        return repository.findAll();
+//    }
+
+    @GetMapping("/books")
+    public Flux<Book> getAllBooks(){
         return repository.findAll();
     }
+
 @GetMapping("/findAllBooks/{id}")
-    public Book getBookById( @PathVariable("id") Integer id){
-        return repository.findById(id).get();
+    public Mono<Book> getBookById(@PathVariable("id") Integer id){
+        return repository.findById(id);
     }
     @DeleteMapping("/delete/{id}")
-    public String deleteBook(@PathVariable("id")  Integer id){
-         repository.deleteById(id);
-        return "book deleted with id:"+id;
+    public Mono<Book> deleteBook(@PathVariable("id")  Integer id){
+        Mono<Void> book = repository.deleteById(id);
+        if(Objects.isNull(book)){
+            return Mono.empty();
+        }
+        return getBookById(id).switchIfEmpty(Mono.empty()).filter(Objects::nonNull).flatMap(studentToBeDeleted->
+                repository.delete(studentToBeDeleted).then(Mono.just(studentToBeDeleted)));
+    }
+
+    @PutMapping("/update")
+    public  Mono<Book> UpdateBook(  @RequestBody Book book){
+        return repository.save(book);
     }
 }
